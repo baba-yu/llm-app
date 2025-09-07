@@ -1,0 +1,52 @@
+# 要件 (更新版 week0-1)
+
+## 本番環境特有
+
+- DB: 本番は AWS RDS for PostgreSQL を利用すること
+- 接続設定: .env 経由で RDS の接続情報（ホスト・ユーザー・パスワード・DB名・ポート）を渡すこと
+- pgvector: Django Migration (RunSQL) で  
+  `CREATE EXTENSION IF NOT EXISTS vector;` を実行し、一貫性を確保すること
+
+## 開発環境
+
+- OS: WSL2 (Ubuntu)
+- Python: 3.11.11（pyenv管理）
+- Django: REST Framework, CORS, Redis対応 (django-redis) を含む
+- DB: Docker Compose で Postgres (5434) + pgvector 拡張  
+  （pgvector/pgvector イメージを利用）
+- Redis: Docker Compose で Redis (6380, requirepass 有効)
+- Node.js: v20 LTS（nvm管理）
+- Frontend: Vue3 + Vite + TypeScript + Pinia + axios
+- その他:  
+  - `.env` / `.env.example` による設定管理  
+  - `.gitignore` で秘密情報や生成物を除外  
+
+## 設計方針
+
+- pgvector拡張は **Migration 管理**に含め、開発Dockerと本番RDSの両方で再現性を担保する
+- Redis はキャッシュ・セッション・短期記憶用に利用し、永続性の必要なデータは PostgreSQL に保存する
+- CORS は開発中は全許可、本番は必要なオリジンに限定する
+
+## 成果 (0週目)
+
+- Monorepo 構成を作成（backend, frontend, infra）
+- Postgres / Redis を Docker Compose で起動し、.env による接続管理を統一
+- Django `runserver` にて起動確認済み
+- `/api/health` API を `system` アプリに移設し、Redis・Postgres 両方の疎通確認を返すように実装  
+  → `{"postgres": true, "redis": true}` を確認
+- pgvector を Migration (`migrations.RunSQL`) で有効化し、再現性を担保
+- `.env.example` を整備し、チーム共有可能な形に更新
+
+## 学び
+
+- プロジェクト名が app で混乱を招くためリファクタリング済み (`config` / `system` に分割)
+- Redis / Postgres のヘルスチェックを Docker Compose に追加済み。  
+  CI/CD に組み込む場合は `docker compose ps` の状態確認を利用できる
+- SECRET_KEY に `$` を含めると Compose が変数展開してしまうので注意  
+  （使う場合は `$$` でエスケープするか `$` を含まないキーを推奨）
+
+# 申し送り
+
+- ankane/pgvector はすでに **archived**。今後は **pgvector/pgvector** を利用すること  
+  （infra/docker-compose.yml のイメージ指定を修正する必要あり）
+- 本番環境はRDSだが、それようにpgvectorの確認もしくはイニシエートをするマイグレーションコマンドがまだないのでつくるべき
